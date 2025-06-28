@@ -2,31 +2,32 @@ from __future__ import annotations
 from enum import Enum
 
 class Opcode(Enum):
-    # Data management
+    # two argument instructions
     MOV = 0
     LDI = 1
     RDM = 2
     WRM = 3
+    CMP = 4
+    CMPI = 5
 
-    # Branching
-    JMP = 4
-    JNZ = 5
-    JEZ = 6
-    JNE = 7
-    JPZ = 8
+    # one argument instructions
+    JMP = 6
+    JNZ = 7
+    JEZ = 8
+    JNE = 9
+    JPZ = 10
+    INC = 11
+    DEC = 12
+    INV = 13
 
-    # Logic/Arithmetic
-    ADD = 9
-    ADDI = 10
-    SUB = 11
-    SUBI = 12
-    INC = 13
-    DEC = 14
-    ORL = 15
-    ANDL = 16
-    XORL = 17
-    INV = 18
-    CMP = 19
+    # three argument instructions
+    ADD = 14
+    ADDI = 15
+    SUB = 16
+    SUBI = 17
+    ORL = 18
+    ANDL = 19
+    XORL = 20
 
 # 1 byte register for A, B, C, D
 class Register1B():
@@ -152,8 +153,43 @@ class Register1B():
             return 1
         else:
             return -1
+
+
+# Instruction class
+class Instruction():
+    def __init__(self, line: str):
+        # line = single instruction
+        # first, remove commas and strip whitespace just in case
+        line = line.replace(",", "").strip()
+        # then split it by spaces
+        tokens = line.split(" ")
+        operation = tokens[0]
+        index = -1
+
+        for code in (Opcode):
+            if(operation == code.name):
+                index = code.value
+        if index == -1:
+            raise ValueError(f"Operation {operation} does not match known list")
         
-# class Instruction():
-    # take in string, make opcode and register targets
+        self._opidx = index
+        self._operation = operation
+        tokens.pop(0) # remove operation
+
+        if 0 <= index <= 5 and len(tokens) != 2:
+            raise ValueError(f"Incorrect number of arguments for {operation}: requires 2, {len(tokens)} were given")
+        elif 6 <= index <= 13 and len(tokens) != 1:
+            raise ValueError(f"Incorrect number of arguments for {operation}: requires 1, {len(tokens)} were given")
+        elif 14 <= index <= 20 and len(tokens) != 3:
+            raise ValueError(f"Incorrect number of arguments for {operation}: requires 3, {len(tokens)} were given")
+        
+        # correct number of arguments, now set list
+        self._args = tokens.copy()
+
+    def __str__(self):
+        return f"{self._operation} ({self._opidx}) {list(token for token in self._args)}"
 
 
+
+
+        
