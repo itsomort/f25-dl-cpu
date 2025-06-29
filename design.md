@@ -1,10 +1,12 @@
 # Architecture
 - 4 general purpose registers, A B C D, 1 byte each (Referred to as R)
 - 2 memory access registers, X Y, 2 bytes each (Referred to as S)
+  - These registers can be loaded with values above 1023, but when accessing memory, it will wrap around (ex. 1024 corresponds to address 0)
 - 1024 bytes of memory available, requires upper 2 bits of memory access registers
 - Flags based on last operation: Negative, Zero
     - If result of an operation is Zero, Zero flag = 1, otherwise 0
     - If the MSB of a result is 1, then Negative flag = 1, otherwise 0
+    - Data management instructions such as MOV or LDI do **not** set the flags, only logic/arithmetic operations do
 
 # Instructions
 
