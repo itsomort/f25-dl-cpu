@@ -389,13 +389,4 @@ class CPU():
                 raise ValueError("Unknown instruction index")
             
         self._index += 1
-
-
-
-
-
-
-
-
-
         
