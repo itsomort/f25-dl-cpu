@@ -12,7 +12,7 @@
 
 ## Data Management
 - MOV R1/S1, R2/S2
-  - Move data from register R1/S1 to register R2/S2, registers must be same width
+  - Move data from register R2/S2 to register R1/S1, registers must be same width
   - Ex. MV X, Y is good, MV X, A is not good
 - LDI R/S, IMM
   - Load register R/S with specified immediate in hex (0x), binary (0b), or decimal (no prefix)

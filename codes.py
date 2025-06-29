@@ -52,6 +52,9 @@ class Register1B():
     def _validate_val(self):
         # modulo handles overflow and underflow case
         self._value %= 256
+
+    def get_val(self):
+        return self._value
         
     
     def load(self, o):
@@ -273,9 +276,29 @@ class CPU():
         self._X = Register2B("X")
         self._Y = Register2B("Y")
 
+        self._regmap = {"A": self._A, "B": self._B, "C": self._C,
+                        "D": self._D, "X": self._X, "Y": self._Y }
+
         # create flags
         self._zerof = False
         self._negativef = False 
+
+    def __str__(self):
+        lines = []
+        lines.append("REGISTERS: ")
+        for key, value in self._regmap.items():
+            lines.append(f"Register {key}: {hex(value.get_val())}")
+        lines.append("\nFLAGS")
+        lines.append(f"Zero Flag: {'1' if self._zerof else '0'}")
+        lines.append(f"Negative Flag: {'1' if self._negativef else '0'}\n")
+        lines.append(f"PROGRAM COUNTER: {self._index}")
+        if(self._index >= len(self._program)):
+            lines.append("EXECUTION OVER")
+        else:
+            lines.append(f"CURRENT INSTRUCTION: {str(self._program[self._index])}")
+
+        return "\n".join(lines)
+        
 
     def step(self):
         regs1b = ["A", "B", "C", "D"]
@@ -284,17 +307,46 @@ class CPU():
         # this will step through 1 instruction and update everything accordingly
         # first, determine what instruction we're executing
         if(self._index >= len(self._program)):
-            raise Exception("Execution of program ended")
+            raise EOFError("Execution of program ended")
         
         inst = self._program[self._index]
 
         # next, based on index, execute instruction and update flags
 
-        match inst.index:
+        match inst._opidx:
             case 0: # MOV
-                pass
+                dest = inst._args[0]
+                src = inst._args[1]
+                # check that registers are A, B, C, D, X, Y
+                if dest not in regs1b and dest not in regs2b:
+                    raise ValueError("Destination register not A, B, C, D, X, or Y")
+                if src not in regs1b and src not in regs2b:
+                    raise ValueError("Source register not A, B, C, D, X, or Y")
+                
+                # check if register sizes are the same
+                if (dest in regs1b and src in regs2b) or (dest in regs2b and src in regs1b):
+                    raise ValueError("Incompatible register sizes for MOV")
+                
+                # transfer data:
+                # load the destination register with the value of the source register
+                self._regmap[dest].load(self._regmap[src].get_val())
+                
             case 1: # LDI
-                pass
+                dest = inst._args[0]
+                data_str = inst._args[1]
+                data_num = None
+
+                # convert data based on base
+                if data_str.find("x") != -1: # hexadecimal
+                    data_num = int(data_str, 16)
+                elif data_str.find("b") != -1: # binary
+                    data_num = int(data_str, 2)
+                else: # decimal
+                    data_num = int(data_str, 10)
+
+                # load destination register with value
+                self._regmap[dest].load(data_num)
+
             case 2: # RDM
                 pass
             case 3: # WRM
@@ -335,6 +387,8 @@ class CPU():
                 pass
             case _:
                 raise ValueError("Unknown instruction index")
+            
+        self._index += 1
 
 
 
