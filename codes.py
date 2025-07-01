@@ -46,8 +46,8 @@ class Register1B():
         if not isinstance(o, (int, Register1B)):
             raise TypeError("Argument is not an integer or Register1B")
         # check if immediate is in proper range
-        if type(o) == int and (o > 255 or o < -127):
-            raise ValueError("Immediate is not in correct range (-127 to 128) or (0 to 255)")
+        if type(o) == int and (o > 255 or o < -128):
+            raise ValueError("Immediate is not in correct range (-128 to 127) or (0 to 255)")
     
     def _validate_val(self):
         # modulo handles overflow and underflow case
@@ -333,6 +333,9 @@ class CPU():
                 
             case 1: # LDI
                 dest = inst._args[0]
+                if dest not in regs1b and dest not in regs2b:
+                    raise ValueError("Destination register not A, B, C, D, X, or Y")
+            
                 data_str = inst._args[1]
                 data_num = None
 
