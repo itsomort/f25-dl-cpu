@@ -1,4 +1,3 @@
-from __future__ import annotations
 from enum import Enum
 
 class Opcode(Enum):
@@ -214,7 +213,7 @@ class Instruction():
         line = line.replace(",", "").strip()
         # then split it by spaces
         tokens = line.split(" ")
-        operation = tokens[0]
+        operation = tokens[0].upper()
         index = -1
 
         for code in (Opcode):
@@ -242,6 +241,10 @@ class Instruction():
     
 # main CPU class
 class CPU():
+
+    regs1b = ["A", "B", "C", "D"]
+    regs2b = ["X", "Y"]
+
     def __init__(self, program, memory, labels):
         # program should be a list of instructions
         if not isinstance(program, list):
@@ -324,14 +327,8 @@ class CPU():
 
     # either 1 byte or 2 byte register
     def _immediate(self, imm, size):
-        val = None
-        # let python handle errors for non-numbers
-        if imm.find("x") != -1: # hexadecimal
-            val = int(imm, 16)
-        elif imm.find("b") != -1: # binary
-            val = int(imm, 2)
-        else: # decimal
-            val = int(imm, 10)
+        # automatic base detection (didnt know this was a thing)
+        val = int(imm, 0)
 
         if size == 1 and not (-128 <= val <= 255):
             raise ValueError("Immediate out of range for 1 byte register")
@@ -339,10 +336,23 @@ class CPU():
             raise ValueError("Immediate out of range for 2 byte register")
         
         return val
+    
+    def _reg_check2(self, dest, r1):
+        if dest not in CPU.regs1b:
+            raise ValueError("Destination register is not A, B, C, or D")
+        if r1 not in CPU.regs1b:
+            raise ValueError("First argument is not A, B, C, or D")
+
+    def _reg_check3(self, dest, r1, r2):
+        if dest not in CPU.regs1b:
+            raise ValueError("Destination register is not A, B, C, or D")
+        if r1 not in CPU.regs1b:
+            raise ValueError("First argument is not A, B, C, or D")
+        if r2 not in CPU.regs1b:
+            raise ValueError("Second argument is not in A, B, C or D")
 
     def step(self):
-        regs1b = ["A", "B", "C", "D"]
-        regs2b = ["X", "Y"]
+        
 
         # this will step through 1 instruction and update everything accordingly
         # first, determine what instruction we're executing
@@ -351,20 +361,30 @@ class CPU():
         
         inst = self._program[self._index]
         inc_pc = True # whether to increment program counter
-        # next, based on index, execute instruction and update flags
 
+        # shorthand for commonly used arguments
+        dest = inst.args[0]
+        reg = inst.args[0]
+        src = "" # my ide gets mad if i dont do this
+        r1 = ""
+        if len(inst.args) > 1:
+            src = inst.args[1]
+            r1 = inst.args[1]
+        r2 = ""
+        if len(inst.args) > 2:
+            r2 = inst.args[2]
+
+        # next, based on index, execute instruction and update flags
         match inst.opidx:
             case 0: # MOV
-                dest = inst.args[0]
-                src = inst.args[1]
                 # check that registers are A, B, C, D, X, Y
-                if dest not in regs1b and dest not in regs2b:
+                if dest not in CPU.regs1b and dest not in CPU.regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
-                if src not in regs1b and src not in regs2b:
+                if src not in CPU.regs1b and src not in CPU.regs2b:
                     raise ValueError("Source register not A, B, C, D, X, or Y")
                 
                 # check if register sizes are the same
-                if (dest in regs1b and src in regs2b) or (dest in regs2b and src in regs1b):
+                if (dest in CPU.regs1b and src in CPU.regs2b) or (dest in CPU.regs2b and src in CPU.regs1b):
                     raise ValueError("Incompatible register sizes for MOV")
                 
                 # transfer data:
@@ -372,11 +392,10 @@ class CPU():
                 self._regmap[dest].load(self._regmap[src].get_val())
                 
             case 1: # LDI
-                dest = inst.args[0]
-                if dest not in regs1b and dest not in regs2b:
+                if dest not in CPU.regs1b and dest not in CPU.regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
             
-                if dest in regs1b:
+                if dest in CPU.regs1b:
                     imm = self._immediate(inst.args[1], 1)
                 else:
                     imm = self._immediate(inst.args[1], 2)
@@ -385,11 +404,9 @@ class CPU():
                 self._regmap[dest].load(imm)
 
             case 2: # RDM
-                dest = inst.args[0]
-                src = inst.args[1]
-                if dest not in regs1b:
+                if dest not in CPU.regs1b:
                     raise ValueError("Destination register not A, B, C, D")
-                if src not in regs2b:
+                if src not in CPU.regs2b:
                     raise ValueError("Source register for address not X, Y")
                 
                 # get value contained in X or Y
@@ -398,11 +415,9 @@ class CPU():
                 self._regmap[dest].load(self._memory[addr])
                 
             case 3: # WRM
-                dest = inst.args[0]
-                src = inst.args[1]
-                if dest not in regs2b:
+                if dest not in CPU.regs2b:
                     raise ValueError("Destination register for address not X, Y")
-                if src not in regs1b:
+                if src not in CPU.regs1b:
                     raise ValueError("Source register not A, B, C, D")
                 
                 # get address for data
@@ -411,84 +426,57 @@ class CPU():
                 self._memory[addr] = self._regmap[src].get_val()
             
             case 4: # CMP
-                r1 = inst.args[0]
-                r2 = inst.args[1]
                 # perform comparison and save value
-                val = r1.cmp(r2)
+                val = self._regmap[reg].cmp(self._regmap[r1])
                 # set corresponding flags
                 self._set_flags(val)
 
-
             case 5: # CMPI
-                r1 = inst.args[0]
                 imm = self._immediate(inst.args[1], 1)
 
                 # same as regular CMP
-                val = r1.cmp(imm)
+                val = self._regmap[reg].cmp(imm)
                 self._set_flags(val)
 
-            case 6: # JMP
-                # get index of specified label and jump
+            # JMP, JNZ, JEZ, JNE, JPZ
+            case 6 | 7 | 8 | 9 | 10:
                 label = inst.args[0]
-                self._index = self._labels[label]
-                inc_pc = False
-            case 7: # JNZ
-                # jump if zero flag is false
-                label = inst.args[0]
-                if not self._zerof:
-                    self._index = self._labels[label]
-                    inc_pc = False
+                if label not in self._labels:
+                    raise ValueError("Label not found")
                 
-            case 8: # JEZ
-                # jump if zero flag is true
-                label = inst.args[0]
-                if self._zerof:
-                    self._index = self._labels[label]
-                    inc_pc = False
-                
-            case 9: # JNE
-                # jump if negative flag is true
-                label = inst.args[0]
-                if self._negativef:
-                    self._index = self._labels[label]
-                    inc_pc = False
-                
-            case 10: # JPZ
-                # jump if negative flag is false
-                label = inst.args[0]
-                if not self._negativef:
+                jump = False
+                if inst.opidx == 6:
+                    jump = True
+                elif inst.opidx == 7 and not self._zerof:
+                    jump = True
+                elif inst.opidx == 8 and self._zerof:
+                    jump = True
+                elif inst.opidx == 9 and self._negativef:
+                    jump = True
+                elif inst.opidx == 10 and not self._negativef:
+                    jump = True
+
+                if jump:
                     self._index = self._labels[label]
                     inc_pc = False
                 
             case 11: # INC
-                reg = inst.args[0]
-                if reg not in regs2b:
+                if reg not in CPU.regs2b:
                     raise ValueError("Register to increment is not X or Y")
                 self._regmap[reg].increment()
 
             case 12: # DEC
-                reg = inst.args[0]
-                if reg not in regs2b:
+                if reg not in CPU.regs2b:
                     raise ValueError("Register to decrement is not X or Y")
                 self._regmap[reg].decrement()
 
             case 13: # INV
-                reg = inst.args[0]
-                if reg not in regs1b:
+                if reg not in CPU.regs1b:
                     raise ValueError("Register to invert is not A, B, C, or D")
                 self._regmap[reg].inv()
 
             case 14: # ADD
-                dest = inst.args[0]
-                r1 = inst.args[1]
-                r2 = inst.args[2]
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
-                if r2 not in regs1b:
-                    raise ValueError("Second argument is not in A, B, C or D")
+                self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].add(self._regmap[r1], self._regmap[r2])
 
@@ -496,60 +484,31 @@ class CPU():
                 self._set_flags(val)
 
             case 15: # ADDI
-                dest = inst.args[0]
-                r1 = inst.args[1]
                 imm = self._immediate(inst.args[2], 1)
 
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
+                self._reg_check2(dest, r1)
                 
                 val = self._regmap[dest].add(self._regmap[r1], imm)
 
                 self._set_flags(val)
 
             case 16: # SUB
-                dest = inst.args[0]
-                r1 = inst.args[1]
-                r2 = inst.args[2]
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
-                if r2 not in regs1b:
-                    raise ValueError("Second argument is not in A, B, C or D")
+                self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].sub(self._regmap[r1], self._regmap[r2])
 
                 self._set_flags(val)
 
             case 17: # SUBI
-                dest = inst.args[0]
-                r1 = inst.args[1]
                 imm = self._immediate(inst.args[2], 1)
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
+                self._reg_check2(dest, r1)
                 
                 val = self._regmap[dest].sub(self._regmap[r1], imm)
 
                 self._set_flags(val)
 
             case 18: # ORL
-                dest = inst.args[0]
-                r1 = inst.args[1]
-                r2 = inst.args[2]
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
-                if r2 not in regs1b:
-                    raise ValueError("Second argument is not in A, B, C or D")
+                self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].orl(self._regmap[r1], self._regmap[r2])
                 # no negative flag set, so do this manually
@@ -559,16 +518,7 @@ class CPU():
                     self._zerof = False
                 
             case 19: # ANDL
-                dest = inst.args[0]
-                r1 = inst.args[1]
-                r2 = inst.args[2]
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
-                if r2 not in regs1b:
-                    raise ValueError("Second argument is not in A, B, C or D")
+                self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].andl(self._regmap[r1], self._regmap[r2])
 
@@ -578,16 +528,7 @@ class CPU():
                     self._zerof = False
 
             case 20: # XORL
-                dest = inst.args[0]
-                r1 = inst.args[1]
-                r2 = inst.args[2]
-
-                if dest not in regs1b:
-                    raise ValueError("Destination register is not A, B, C, or D")
-                if r1 not in regs1b:
-                    raise ValueError("First argument is not A, B, C, or D")
-                if r2 not in regs1b:
-                    raise ValueError("Second argument is not in A, B, C or D")
+                self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].xorl(self._regmap[r1], self._regmap[r2])
 
@@ -601,4 +542,71 @@ class CPU():
         
         if inc_pc:
             self._index += 1
-        
+
+# takes in file name, returns program and memory
+def assemble(file_name):
+    index = 0
+    labels = {}
+    memory = [0] * 1024
+    program = []
+    for line in open(file_name):
+
+        # get rid of newline before anything
+        line = line.strip() 
+
+        # ignore comments
+        if line.find("--") != -1:
+            pos = line.index("--")
+            line = line[:pos]
+
+        # ignore if blank
+        if line.strip() == "":
+            continue
+
+        # check if directive
+        if line.find(".") != -1:
+            tokens = line.split(" ")
+            if tokens[0].lower() == ".byte":
+                # ensure proper number of arguments
+                if len(tokens) != 3:
+                    raise ValueError("Incorrect number of arguments for .byte")
+                # get address and data
+                addr = int(tokens[1], 0)
+                data = int(tokens[2], 0)
+                # verify addr and data
+                if not 0 <= addr <= 1023:
+                    raise ValueError("Address must be within 0 to 1023 (0x000 to 0x3FF)")
+                if not -128 <= data <= 255:
+                    raise ValueError("Data must be in range -128 to 127 or 0 to 255")
+                # place in memory
+                memory[addr] = data
+            if tokens[0].lower() == ".list":
+                # length of list
+                length = int(tokens[1], 10)
+                if not 0 < length < 11:
+                    raise ValueError("Length of list must be positive and not exceed 10")
+                # get starting address
+                addr = int(tokens[2], 0)
+                if (3 + length) != len(tokens):
+                    raise ValueError("Incorrect number of arguments for .list")
+                for i in range(0, length):
+                    data = int(tokens[3 + i], 0)
+                    if not -128 <= data <= 255:
+                        raise ValueError("Data must be in range -128 to 127 or 0 to 255")
+                    memory[addr + i] = int(tokens[3 + i], 0)
+                
+        # check if label:
+        elif line.find(":") != -1:
+            # get label name
+            name = line.strip().replace(":", "")
+            # check if already in dictionary
+            if name in labels:
+                raise ValueError("Labels must be unique")
+            labels[name] = index
+
+        # otherwise, add instruction and increment index
+        else:
+            program.append(Instruction(line))
+            index += 1
+    print(labels)
+    return (program, memory, labels)

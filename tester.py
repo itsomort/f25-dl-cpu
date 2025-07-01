@@ -1,16 +1,10 @@
-from codes import CPU, Instruction
+from codes import CPU, assemble
 
-prog = []
-with open("test.lab7") as f:
-    for line in f:
-        prog.append(Instruction(line))
-
-memory = [0] * 1024
-
-cpu = CPU(prog, memory, None)
+args = assemble("test.lab7")
+cpu = CPU(*args)
 
 while True:
     print(cpu)
-    cpu.step()
     input()
+    cpu.step()
 

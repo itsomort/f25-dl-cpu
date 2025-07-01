@@ -11,58 +11,58 @@
 # Instructions
 
 ## Data Management
-- `MOV R1/S1, R2/S2`
+- `MOV R1/S1, R2/S2`: Move
   - Move data from register `R2/S2` to register `R1/S1`, registers must be same width
   - Ex. `MV X, Y` is good, `MV X, A` is not good
-- `LDI R/S, IMM`
+- `LDI R/S, IMM`: Load Immediate
   - Load register `R/S` with specified immediate in hex (0x), binary (0b), or decimal (no prefix)
   - Can load values -128 to 127 or 0 to 255 into A, B, C, D
   - Can load values 0 to 65535 into X, Y, with memory wraparound
   - 1 byte immediate for A, B, C, D, 2 byte immediate for X, Y
-- `RDM R, S`
+- `RDM R, S`: Read Memory
   - Read memory from address `S` and load into register `R`
-- `WRM S, R`
+- `WRM S, R`: Write Memory
   - Write data in register `R` to address `S`
 
 ## Branching
-- `JMP LABEL`
+- `JMP LABEL`: Jump
   - Jumps to instruction immediately following specified label
-- `JNZ LABEL`
+- `JNZ LABEL`: Jump if Not Zero
   - Jumps to instruction immediately following specified label **if** the Zero flag is 0, otherwise continues execution
-- `JEZ LABEL`
+- `JEZ LABEL`: Jump if Equals Zero
   - Jumps to instruction immediately following specified label **if** the Zero flag is 1, otherwise continues execution
-- `JNE LABEL`
+- `JNE LABEL`: Jump if Negative
   - Jumps to instruction immediately following specified label **if** the Negative flag is 1, otherwise continues execution
-- `JPZ LABEL`
+- `JPZ LABEL`: Jump if Positive or Zero
   - Jumps to instruction immediately following specified label **if** the Negative flag is 0, otherwise continues execution
 
 ## Logic/Arithmetic Operations
 
-- `ADD R1, R2, R3`
+- `ADD R1, R2, R3`: Add
   - R1 = R2 + R3, sets zero flag and negative flag
-- `ADDI R1, R2, IMM`
+- `ADDI R1, R2, IMM`: Add Immediate
   - R1 = R2 + IMM, sets zero flag and negative flag
-- `SUB R1, R2, R3`
+- `SUB R1, R2, R3`: Subtract
   - R1 = R2 - R3, sets zero flag a nd negative flag
-- `SUBI R1, R2, IMM`
+- `SUBI R1, R2, IMM`: Subtract Immediate
   - R1 = R2 - IMM, sets zero flag and negative flag
-- `INC S`
+- `INC S`: Increment
   - Increments X or Y register, does not set zero flag or negative flag
-- `DEC S`
+- `DEC S`: Decrement
   - Decrements X or Y register, does not set zero flag or negative flag
-- `ORL R1, R2, R3`
+- `ORL R1, R2, R3`: Logical OR
   - R1 = R2 OR R3, bitwise or, sets zero flag but not negative flag
-- `ANDL R1, R2, R3`
+- `ANDL R1, R2, R3`: Logical AND
   - R1 = R2 AND R3, bitwise and, sets zero flag but not negative flag
-- `XORL R1, R2, R3` 
+- `XORL R1, R2, R3`L Logical XOR
   - R1 = R2 XOR R3, bitwise xor, sets zero flag but not negative flag
-- `INV R1`
+- `INV R1`: Invert
   - R1 = ~R1 (bitwise not), does not set zero flag or negative flag
-- `CMP R1, R2`
+- `CMP R1, R2`: Compare
   - If R1 == R2, sets zero flag and not negative flag
   - If R1 > R2, sets neither flag
   - If R1 < R2, sets negative flag
-- `CMPI R1, IMM`
+- `CMPI R1, IMM`: Compare Immediate
   - If R1 == IMM, sets zero flag and not negative flag
   - If R1 > IMM, sets neither flag
   - If R1 < IMM, sets negative flag
@@ -71,8 +71,10 @@
 
 All directives aside from labels should be at the beginning of the program for proper usage.
 
+Comments can be declared with `--`. Comments can start anywhere in the line, and anything after the `--` will be ignored.
+
 ## Labels
-Must be on a separate line from other code and must contain a colon. Labels must also be unique.
+Must be on a separate line from other code and must contain a colon. Labels must also be unique. Labels are **case-sensitive**.
 
 Valid:
 ```

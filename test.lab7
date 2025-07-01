@@ -1,0 +1,26 @@
+.list 5 0x3E 90 25 0b01111111 0x3e 0xff
+-- this program will calculate the 2's complement value of every element in the list
+-- starting from 0x3e and stopping when a value is 0xff
+
+ldi X, 0x3e
+ldi A, 0
+LOOP:
+-- read from memory
+rdm B, X
+-- check if B equals 0xff
+cmpi B, 0xff
+-- branch out if zero
+jez GETMEOUT
+-- invert
+inv B
+-- add 1
+addi B, B, 1
+-- write to memory
+wrm X, B
+-- increment
+inc X
+-- loop back
+jmp LOOP
+GETMEOUT:
+-- loop forever
+jmp GETMEOUT
