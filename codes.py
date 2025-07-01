@@ -212,7 +212,7 @@ class Instruction():
         if index == -1:
             raise ValueError(f"Operation {operation} does not match known list")
         
-        self._opidx = index
+        self.opidx = index
         self._operation = operation
         tokens.pop(0) # remove operation
 
@@ -224,10 +224,10 @@ class Instruction():
             raise ValueError(f"Incorrect number of arguments for {operation}: requires 3, {len(tokens)} were given")
         
         # correct number of arguments, now set list
-        self._args = tokens
+        self.args = tokens
 
     def __str__(self):
-        return f"{self._operation} ({self._opidx}) {list(token for token in self._args)}"
+        return f"{self._operation} ({self.opidx}) {list(token for token in self.args)}"
     
 # main CPU class
 class CPU():
@@ -299,6 +299,32 @@ class CPU():
 
         return "\n".join(lines)
         
+    def _set_flags(self, val):
+        if val == 0:
+            self._zerof = True
+        else:
+            self._zerof = False
+
+        if val < 0:
+            self._negativef = True
+        else:
+            self._negativef = False
+
+    # either 1 byte or 2 byte register
+    def _immediate(self, imm, size):
+        val = None
+        # let python handle errors for non-numbers
+        if imm.find("x") != -1: # hexadecimal
+            val = int(imm, 16)
+        elif imm.find("b") != -1: # binary
+            val = int(imm, 2)
+        else: # decimal
+            val = int(imm, 10)
+
+        if size == 1 and not (-128 <= val <= 255):
+            raise ValueError("Immediate out of range for 1 byte register")
+        if size == 2 and not (0 <= val <= 65535):
+            raise ValueError("Immediate out of range for 2 byte register")
 
     def step(self):
         regs1b = ["A", "B", "C", "D"]
@@ -310,13 +336,13 @@ class CPU():
             raise EOFError("Execution of program ended")
         
         inst = self._program[self._index]
-
+        inc_pc = True # whether to increment program counter
         # next, based on index, execute instruction and update flags
 
-        match inst._opidx:
+        match inst.opidx:
             case 0: # MOV
-                dest = inst._args[0]
-                src = inst._args[1]
+                dest = inst.args[0]
+                src = inst.args[1]
                 # check that registers are A, B, C, D, X, Y
                 if dest not in regs1b and dest not in regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
@@ -332,64 +358,213 @@ class CPU():
                 self._regmap[dest].load(self._regmap[src].get_val())
                 
             case 1: # LDI
-                dest = inst._args[0]
+                dest = inst.args[0]
                 if dest not in regs1b and dest not in regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
             
-                data_str = inst._args[1]
-                data_num = None
-
-                # convert data based on base
-                if data_str.find("x") != -1: # hexadecimal
-                    data_num = int(data_str, 16)
-                elif data_str.find("b") != -1: # binary
-                    data_num = int(data_str, 2)
-                else: # decimal
-                    data_num = int(data_str, 10)
+                if dest in regs1b:
+                    imm = self._immediate(inst.args[1], 1)
+                else:
+                    imm = self._immediate(inst.args[1], 2)
 
                 # load destination register with value
-                self._regmap[dest].load(data_num)
+                self._regmap[dest].load(imm)
 
             case 2: # RDM
-                pass
+                dest = inst.args[0]
+                src = inst.args[1]
+                if dest not in regs1b:
+                    raise ValueError("Destination register not A, B, C, D")
+                if src not in regs2b:
+                    raise ValueError("Source register for address not X, Y")
+                
+                # get value contained in X or Y
+                addr = self._regmap[src].get_val()
+                # grab corresponding value from memory and load into register
+                self._regmap[dest].load(self._memory[addr])
+                
             case 3: # WRM
-                pass
+                dest = inst.args[0]
+                src = inst.args[1]
+                if dest not in regs2b:
+                    raise ValueError("Destination register for address not X, Y")
+                if src not in regs1b:
+                    raise ValueError("Source register not A, B, C, D")
+                
+                # get address for data
+                addr = self._regmap[dest].get_val()
+                # and change memory to data from src register
+                self._memory[addr] = self._regmap[src].get_val()
+            
             case 4: # CMP
-                pass
+                r1 = inst.args[0]
+                r2 = inst.args[1]
+                # perform comparison and save value
+                val = r1.cmp(r2)
+                # set corresponding flags
+                self._set_flags(val)
+
+
             case 5: # CMPI
-                pass
+                r1 = inst.args[0]
+                imm = self._immediate(inst.args[1], 1)
+
+                # same as regular CMP
+                val = r1.cmp(imm)
+                self._set_flags(val)
+
             case 6: # JMP
-                pass
+                # get index of specified label and jump
+                label = inst.args[0]
+                self._index = self._labels[label]
+                inc_pc = False
             case 7: # JNZ
-                pass
+                # jump if zero flag is false
+                label = inst.args[0]
+                if not self._zerof:
+                    self._index = self._labels[label]
+                    inc_pc = False
+                
             case 8: # JEZ
-                pass
+                # jump if zero flag is true
+                label = inst.args[0]
+                if self._zerof:
+                    self._index = self._labels[label]
+                    inc_pc = False
+                
             case 9: # JNE
-                pass
+                # jump if negative flag is true
+                label = inst.args[0]
+                if self._negativef:
+                    self._index = self._labels[label]
+                    inc_pc = False
+                
             case 10: # JPZ
-                pass
+                # jump if negative flag is false
+                label = inst.args[0]
+                if not self._negativef:
+                    self._index = self._labels[label]
+                    inc_pc = False
+                
             case 11: # INC
-                pass
+                reg = inst.args[0]
+                if reg not in regs2b:
+                    raise ValueError("Register to increment is not X or Y")
+                self._regmap[reg].increment()
+
             case 12: # DEC
-                pass
+                reg = inst.args[0]
+                if reg not in regs2b:
+                    raise ValueError("Register to decrement is not X or Y")
+                self._regmap[reg].decrement()
+
             case 13: # INV
-                pass
+                reg = inst.args[0]
+                if reg not in regs1b:
+                    raise ValueError("Register to invert is not A, B, C, or D")
+                self._regmap[reg].inv()
+
             case 14: # ADD
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                r2 = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                if r2 not in regs1b:
+                    raise ValueError("Second argument is not in A, B, C or D")
+                
+                # get values
+                arg1 = self._regmap[r1].get_val()
+                arg2 = self._regmap[r2].get_val()
+
+                # for overflow
+                s = (arg1 + arg2) % 256
+                # load into register
+                val = self._regmap[dest].load(s)
+
+                # set flags
+                self._set_flags(val)
+
             case 15: # ADDI
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                imm = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                
+                arg1 = self._regmap[r1].get_val()
+                arg2 = self._immediate(imm, 1)
+
+                s = (arg1 + arg2) % 256
+                val = self._regmap[dest].load(s)
+
+                self._set_flags(val)
+
             case 16: # SUB
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                r2 = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                if r2 not in regs1b:
+                    raise ValueError("Second argument is not in A, B, C or D")
+                
+                arg1 = self._regmap[r1].get_val()
+                arg2 = self._regmap[r2].get_val()
+
+                s = (arg1 - arg2) % 256
+                val = self._regmap[dest].load(s)
+
+                self._set_flags(val)
+
             case 17: # SUBI
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                imm = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                
+                arg1 = self._regmap[r1].get_val()
+                arg2 = self._immediate(imm, 1)
+
+                s = (arg1 - arg2) % 256
+                val = self._regmap[dest].load(s)
+
+                self._set_flags(val)
+
             case 18: # ORL
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                r2 = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                if r2 not in regs1b:
+                    raise ValueError("Second argument is not in A, B, C or D")
+                
+                arg1 = self._regmap[r1].get_val()
+                arg2 = self._regmap[r2].get_val()
             case 19: # ANDL
                 pass
             case 20: # XORL
                 pass
             case _:
                 raise ValueError("Unknown instruction index")
-            
-        self._index += 1
+        
+        if inc_pc:
+            self._index += 1
         
