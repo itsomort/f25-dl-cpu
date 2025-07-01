@@ -1,9 +1,9 @@
-from codes import *
+from codes import CPU, Instruction
 
-lines = ["LDI A, 60", "MOV B, A"]
 prog = []
-for i in lines:
-    prog.append(Instruction(i))
+with open("test.lab7") as f:
+    for line in f:
+        prog.append(Instruction(line))
 
 memory = [0] * 1024
 
@@ -12,4 +12,5 @@ cpu = CPU(prog, memory, None)
 while True:
     print(cpu)
     cpu.step()
+    input()
 

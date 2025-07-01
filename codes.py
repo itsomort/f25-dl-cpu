@@ -204,7 +204,6 @@ class Register2B():
     def get_val(self):
         return self._value % 1024
 
-
 # Instruction class
 class Instruction():
     def __init__(self, line):
@@ -307,7 +306,7 @@ class CPU():
         if(self._index >= len(self._program)):
             lines.append("EXECUTION OVER")
         else:
-            lines.append(f"CURRENT INSTRUCTION: {str(self._program[self._index])}")
+            lines.append(f"NEXT INSTRUCTION: {str(self._program[self._index])}\n\n")
 
         return "\n".join(lines)
         
@@ -317,7 +316,8 @@ class CPU():
         else:
             self._zerof = False
 
-        if val < 0:
+        # vals > 127 indicate MSB is 1, so negative
+        if val < 127:
             self._negativef = True
         else:
             self._negativef = False
@@ -337,6 +337,8 @@ class CPU():
             raise ValueError("Immediate out of range for 1 byte register")
         if size == 2 and not (0 <= val <= 65535):
             raise ValueError("Immediate out of range for 2 byte register")
+        
+        return val
 
     def step(self):
         regs1b = ["A", "B", "C", "D"]
