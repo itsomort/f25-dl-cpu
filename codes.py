@@ -68,62 +68,74 @@ class Register1B():
         self._validate_val()
 
     # addition
-    def add(self, o):
-        self._arg_check(o)
+    def add(self, o1, o2):
+        self._arg_check(o1)
+        self._arg_check(o2)
         # add values depending on type
 
-        if isinstance(o, int):
-            self._value += o
-        elif isinstance(o, Register1B):
-            self._value += o._value
+        if isinstance(o1, Register1B) and isinstance(o2, Register1B):
+            self._value = o1.get_val() + o2.get_val()
+        # immediates passed in as second argument
+        elif isinstance(o1, Register1B) and isinstance(o2, int):
+            self._value = o1.get_val() + o2
+        else:
+            raise TypeError("Bad types for Register1B.add")
         
         self._validate_val()
         return self._value
 
     # subtraction
-    def sub(self, o):
-        self._arg_check(o)
+    def sub(self, o1, o2):
+        self._arg_check(o1)
+        self._arg_check(o2)
         
         # subtract value depending on type
-        if isinstance(o, int):
-            self._value -= o
-        elif isinstance(o, Register1B):
-            self._value -= o._value
+        if isinstance(o1, Register1B) and isinstance(o2, Register1B):
+            self._value = o1.get_val() - o2.get_val()
+        elif isinstance(o1, Register1B) and isinstance(o2, int):
+            self._value = o1.get_val() - o2
+        else:
+            raise TypeError("Bad types for Register1B.sub")
         
         self._validate_val()
         return self._value
 
     # logical OR
-    def orl(self, o):
-        self._arg_check(o)
+    def orl(self, o1, o2):
+        self._arg_check(o1)
+        self._arg_check(o2)
 
-        if isinstance(o, int):
-            self._value |= o
-        elif isinstance(o, Register1B):
-            self._value |= o._value
+        # only registers passed in here
+        if isinstance(o1, Register1B) and isinstance(o2, Register1B):
+            self._value = o1.get_val() | o2.get_val()
+        else:
+            raise TypeError("Bad types for Register1B.orl")
+        
 
         self._validate_val()
         return self._value
 
     # logical AND
-    def andl(self, o):
-        self._arg_check(o)
+    def andl(self, o1, o2):
+        self._arg_check(o1)
+        self._arg_check(o2)
 
-        if isinstance(o, int):
-            self._value &= o
-        elif isinstance(o, Register1B):
-            self._value &= o._value
+        if isinstance(o1, Register1B) and isinstance(o2, Register1B):
+            self._value = o1.get_val() & o2.get_val()
+        else:
+            raise TypeError("Bad types for Register1B.andl")
 
         self._validate_val()
         return self._value
 
-    def xorl(self, o):
-        self._arg_check(o)
+    def xorl(self, o1, o2):
+        self._arg_check(o1)
+        self._arg_check(o2)
 
-        if isinstance(o, int):
-            self._value ^= o
-        elif isinstance(o, Register1B):
-            self._value ^= o._value
+        if isinstance(o1, Register1B) and isinstance(o2, Register1B):
+            self._value = o1.get_val() ^ o2.get_val()
+        else:
+            raise TypeError("Bad types for Register1B.xorl")
 
         self._validate_val()
         return self._value
@@ -476,14 +488,7 @@ class CPU():
                 if r2 not in regs1b:
                     raise ValueError("Second argument is not in A, B, C or D")
                 
-                # get values
-                arg1 = self._regmap[r1].get_val()
-                arg2 = self._regmap[r2].get_val()
-
-                # for overflow
-                s = (arg1 + arg2) % 256
-                # load into register
-                val = self._regmap[dest].load(s)
+                val = self._regmap[dest].add(self._regmap[r1], self._regmap[r2])
 
                 # set flags
                 self._set_flags(val)
@@ -491,18 +496,14 @@ class CPU():
             case 15: # ADDI
                 dest = inst.args[0]
                 r1 = inst.args[1]
-                imm = inst.args[2]
+                imm = self._immediate(inst.args[2], 1)
 
                 if dest not in regs1b:
                     raise ValueError("Destination register is not A, B, C, or D")
                 if r1 not in regs1b:
                     raise ValueError("First argument is not A, B, C, or D")
                 
-                arg1 = self._regmap[r1].get_val()
-                arg2 = self._immediate(imm, 1)
-
-                s = (arg1 + arg2) % 256
-                val = self._regmap[dest].load(s)
+                val = self._regmap[dest].add(self._regmap[r1], imm)
 
                 self._set_flags(val)
 
@@ -518,29 +519,21 @@ class CPU():
                 if r2 not in regs1b:
                     raise ValueError("Second argument is not in A, B, C or D")
                 
-                arg1 = self._regmap[r1].get_val()
-                arg2 = self._regmap[r2].get_val()
-
-                s = (arg1 - arg2) % 256
-                val = self._regmap[dest].load(s)
+                val = self._regmap[dest].sub(self._regmap[r1], self._regmap[r2])
 
                 self._set_flags(val)
 
             case 17: # SUBI
                 dest = inst.args[0]
                 r1 = inst.args[1]
-                imm = inst.args[2]
+                imm = self._immediate(inst.args[2], 1)
 
                 if dest not in regs1b:
                     raise ValueError("Destination register is not A, B, C, or D")
                 if r1 not in regs1b:
                     raise ValueError("First argument is not A, B, C, or D")
                 
-                arg1 = self._regmap[r1].get_val()
-                arg2 = self._immediate(imm, 1)
-
-                s = (arg1 - arg2) % 256
-                val = self._regmap[dest].load(s)
+                val = self._regmap[dest].sub(self._regmap[r1], imm)
 
                 self._set_flags(val)
 
@@ -556,12 +549,51 @@ class CPU():
                 if r2 not in regs1b:
                     raise ValueError("Second argument is not in A, B, C or D")
                 
-                arg1 = self._regmap[r1].get_val()
-                arg2 = self._regmap[r2].get_val()
+                val = self._regmap[dest].orl(self._regmap[r1], self._regmap[r2])
+                # no negative flag set, so do this manually
+                if val == 0:
+                    self._zerof = True
+                else:
+                    self._zerof = False
+                
             case 19: # ANDL
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                r2 = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                if r2 not in regs1b:
+                    raise ValueError("Second argument is not in A, B, C or D")
+                
+                val = self._regmap[dest].andl(self._regmap[r1], self._regmap[r2])
+
+                if val == 0:
+                    self._zerof = True
+                else:
+                    self._zerof = False
+
             case 20: # XORL
-                pass
+                dest = inst.args[0]
+                r1 = inst.args[1]
+                r2 = inst.args[2]
+
+                if dest not in regs1b:
+                    raise ValueError("Destination register is not A, B, C, or D")
+                if r1 not in regs1b:
+                    raise ValueError("First argument is not A, B, C, or D")
+                if r2 not in regs1b:
+                    raise ValueError("Second argument is not in A, B, C or D")
+                
+                val = self._regmap[dest].xorl(self._regmap[r1], self._regmap[r2])
+
+                if val == 0:
+                    self._zerof = True
+                else:
+                    self._zerof = False
+
             case _:
                 raise ValueError("Unknown instruction index")
         
