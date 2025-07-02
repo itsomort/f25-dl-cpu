@@ -1,6 +1,23 @@
 from codes import CPU, assemble
+import sys
 
-args = assemble("test.lab7")
+skip = False
+filename = "program.lab7"
+
+if len(sys.argv) != 1:
+    if sys.argv[1] == "-h":
+        print("-h: print this help menu")
+        print("-f [filename]: pass in a filename to assemble (no spaces), otherwise defaults to program.lab7")
+        print("-s: skips inputting commands")
+
+    if "-s" in sys.argv:
+        skip = True
+    
+    if "-f" in sys.argv:
+        idx = sys.argv.index("-f")
+        filename = sys.argv[idx + 1]
+
+args = assemble(filename)
 cpu = CPU(*args)
 
 def menu():
@@ -11,8 +28,9 @@ def menu():
     print("Enter P to print the state of the cpu, enter H for a reminder of this menu\n")
 
 
-skip = False
-menu()
+if not skip:
+    menu()
+
 while True:
     print(cpu)
     cont = False
@@ -48,6 +66,8 @@ while True:
     try:
         cpu.step()
     except Exception as e:
+        if isinstance(e, EOFError):
+            exit()
         inst = cpu._program[cpu._index]
         print(f"Error in instruction: {inst}")
         print(e)

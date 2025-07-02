@@ -237,7 +237,7 @@ class Instruction():
         self.args = tokens
 
     def __str__(self):
-        return f"{self._operation} ({self.opidx}) {list(token for token in self.args)}"
+        return f"{self._operation} {', '.join(self.args)}"
     
 # main CPU class
 class CPU():
