@@ -9,6 +9,7 @@ if len(sys.argv) != 1:
         print("-h: print this help menu")
         print("-f [filename]: pass in a filename to assemble (no spaces), otherwise defaults to program.lab7")
         print("-s: skips inputting commands")
+        sys.exit(0)
 
     if "-s" in sys.argv:
         skip = True
@@ -24,7 +25,7 @@ def menu():
     print("Available commands:")
     print("If stuck in an infinite loop, CTRL+C or CMD+. to stop the program completely")
     print("Enter memory address in hexadecimal prefixed by 0x to output that memory value")
-    print("Enter Q to stop execution, enter S to step, enter C to continue until end")
+    print("Enter Q to stop execution, enter nothing or S to step, enter C to continue until end")
     print("Enter P to print the state of the cpu, enter H for a reminder of this menu\n")
 
 
@@ -54,7 +55,7 @@ while True:
                 print("Stopping execution")
                 print(cpu)
                 exit()
-            if inp == "S":
+            if inp == "S" or inp == "":
                 cont = True
             if inp == "C":
                 cont = True
