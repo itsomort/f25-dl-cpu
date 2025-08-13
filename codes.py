@@ -205,7 +205,8 @@ class Register2B():
 
 # Instruction class
 class Instruction():
-    def __init__(self, line):
+    def __init__(self, line, num=0):
+        # num = line number
         # line = single instruction
         # first, remove commas and strip whitespace just in case
         if not isinstance(line, str):
@@ -220,18 +221,18 @@ class Instruction():
             if(operation == code.name):
                 index = code.value
         if index == -1:
-            raise ValueError(f"Operation {operation} does not match known list")
+            raise ValueError(f"Line {num}: Operation {operation} does not match known list")
         
         self.opidx = index
         self._operation = operation
         tokens.pop(0) # remove operation
 
         if 0 <= index <= 5 and len(tokens) != 2:
-            raise ValueError(f"Incorrect number of arguments for {operation}: requires 2, {len(tokens)} were given")
+            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 2, {len(tokens)} were given")
         elif 6 <= index <= 13 and len(tokens) != 1:
-            raise ValueError(f"Incorrect number of arguments for {operation}: requires 1, {len(tokens)} were given")
+            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 1, {len(tokens)} were given")
         elif 14 <= index <= 20 and len(tokens) != 3:
-            raise ValueError(f"Incorrect number of arguments for {operation}: requires 3, {len(tokens)} were given")
+            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 3, {len(tokens)} were given")
         
         # correct number of arguments, now set list
         self.args = tokens
@@ -546,12 +547,12 @@ class CPU():
 # takes in file name, returns program and memory
 def assemble(file_name):
     index = 0
-    line_num = 1
+    line_num = 0
     labels = {}
     memory = [0] * 1024
     program = []
     for line in open(file_name):
-
+        line_num += 1
         # get rid of newline before anything
         line = line.strip() 
 
@@ -610,7 +611,7 @@ def assemble(file_name):
 
         # otherwise, add instruction and increment index
         else:
-            program.append(Instruction(line))
+            program.append(Instruction(line, line_num))
             index += 1
 
         line_num += 1
