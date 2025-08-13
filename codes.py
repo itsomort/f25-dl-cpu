@@ -546,6 +546,7 @@ class CPU():
 # takes in file name, returns program and memory
 def assemble(file_name):
     index = 0
+    line_num = 1
     labels = {}
     memory = [0] * 1024
     program = []
@@ -559,6 +560,9 @@ def assemble(file_name):
             pos = line.index("--")
             line = line[:pos]
 
+        # get rid of whitespace again
+        line = line.strip()
+
         # ignore if blank
         if line.strip() == "":
             continue
@@ -569,30 +573,30 @@ def assemble(file_name):
             if tokens[0].lower() == ".byte":
                 # ensure proper number of arguments
                 if len(tokens) != 3:
-                    raise ValueError("Incorrect number of arguments for .byte")
+                    raise ValueError(f"Line {line_num}: Incorrect number of arguments for .byte, expected 3 but received {len(tokens)} instead")
                 # get address and data
                 addr = int(tokens[1], 0)
                 data = int(tokens[2], 0)
                 # verify addr and data
                 if not 0 <= addr <= 1023:
-                    raise ValueError("Address must be within 0 to 1023 (0x000 to 0x3FF)")
+                    raise ValueError(f"Line {line_num}: Address must be within 0 to 1023 (0x000 to 0x3FF), received {addr} instead")
                 if not -128 <= data <= 255:
-                    raise ValueError("Data must be in range -128 to 127 or 0 to 255")
+                    raise ValueError(f"Line {line_num}: Data must be in range -128 to 127 or 0 to 255, received {data} instead")
                 # place in memory
                 memory[addr] = data
             if tokens[0].lower() == ".list":
                 # length of list
                 length = int(tokens[1], 10)
                 if not 0 < length < 11:
-                    raise ValueError("Length of list must be positive and not exceed 10")
+                    raise ValueError(f"Line {line_num}: Length of list must be positive and not exceed 10, received {length} instead")
                 # get starting address
                 addr = int(tokens[2], 0)
                 if (3 + length) != len(tokens):
-                    raise ValueError("Incorrect number of arguments for .list")
+                    raise ValueError(f"Line {line_num}: Incorrect number of arguments for .list, expected {3 + length} but received {len(tokens)} instead")
                 for i in range(0, length):
                     data = int(tokens[3 + i], 0)
                     if not -128 <= data <= 255:
-                        raise ValueError("Data must be in range -128 to 127 or 0 to 255")
+                        raise ValueError(f"Line {line_num}: Data must be in range -128 to 127 or 0 to 255, received {data} instead")
                     memory[addr + i] = int(tokens[3 + i], 0)
                 
         # check if label:
@@ -601,12 +605,13 @@ def assemble(file_name):
             name = line.strip().replace(":", "")
             # check if already in dictionary
             if name in labels:
-                raise ValueError("Labels must be unique")
+                raise ValueError(f"Labels must be unique, {name} was repeated")
             labels[name] = index
 
         # otherwise, add instruction and increment index
         else:
             program.append(Instruction(line))
             index += 1
-    print(labels)
+
+        line_num += 1
     return (program, memory, labels)
