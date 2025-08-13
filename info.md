@@ -1,3 +1,6 @@
+# Info
+This document contains information about the CPU's architecture, instructions, and directives. If you are looking for information about the operation of the CPU and how to run it from the command line, please read [README.md](README.md).
+
 # Architecture
 - 4 general purpose registers, A B C D, 1 byte each (Referred to as R)
 - 2 memory access registers, X Y, 2 bytes each (Referred to as S)

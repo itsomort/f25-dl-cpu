@@ -1,6 +1,6 @@
 # Fall 2025 EEL3701C Lab 7 CPU
 
-This EEL3701C lab is meant to introduce students to assembly language concepts. For usage instructions, keep reading. For information on the CPU, such as registers, instructions, and architecture, please read [[info.md]].
+This EEL3701C lab is meant to introduce students to assembly language concepts. For usage instructions, keep reading. For information on the CPU, such as registers, instructions, and architecture, please read [info.md](info.md).
 
 ## Requirements
 
