@@ -16,12 +16,13 @@ This document contains information about the CPU's architecture, instructions, a
 ## Data Management
 - `MOV R1/S1, R2/S2`: Move
   - Move data from register `R2/S2` to register `R1/S1`, registers must be same width
-  - Ex. `MV X, Y` is good, `MV X, A` is not good
+  - Ex. `MV X, Y` is good, `MV X, A` is invalid.
 - `LDI R/S, IMM`: Load Immediate
   - Load register `R/S` with specified immediate in hex (0x), binary (0b), or decimal (no prefix)
   - Can load values -128 to 127 or 0 to 255 into A, B, C, D
   - Can load values 0 to 65535 into X, Y, with memory wraparound
-  - 1 byte immediate for A, B, C, D, 2 byte immediate for X, Y
+  - 1 byte immediate for A, B, C, D
+  - 2 byte immediate for X, Y
 - `RDM R, S`: Read Memory
   - Read memory from address `S` and load into register `R`
 - `WRM S, R`: Write Memory
@@ -29,15 +30,15 @@ This document contains information about the CPU's architecture, instructions, a
 
 ## Branching
 - `JMP LABEL`: Jump
-  - Jumps to instruction immediately following specified label
+  - Unconditionally jumps to instruction immediately following specified label
 - `JNZ LABEL`: Jump if Not Zero
-  - Jumps to instruction immediately following specified label **if** the Zero flag is 0, otherwise continues execution
+  - Jumps to instruction immediately following specified `LABEL` **if** the Zero flag is 0, otherwise continues to next instruction
 - `JEZ LABEL`: Jump if Equals Zero
-  - Jumps to instruction immediately following specified label **if** the Zero flag is 1, otherwise continues execution
+  - Jumps to instruction immediately following specified `LABEL` **if** the Zero flag is 1, otherwise continues to next instruction
 - `JNE LABEL`: Jump if Negative
-  - Jumps to instruction immediately following specified label **if** the Negative flag is 1, otherwise continues execution
+  - Jumps to instruction immediately following specified `LABEL` **if** the Negative flag is 1, otherwise continues execution to next instruction
 - `JPZ LABEL`: Jump if Positive or Zero
-  - Jumps to instruction immediately following specified label **if** the Negative flag is 0, otherwise continues execution
+  - Jumps to instruction immediately following specified `LABEL` **if** the Negative flag is 0, otherwise continues execution to next instruction
 
 ## Logic/Arithmetic Operations
 
@@ -46,7 +47,7 @@ This document contains information about the CPU's architecture, instructions, a
 - `ADDI R1, R2, IMM`: Add Immediate
   - R1 = R2 + IMM, sets zero flag and negative flag
 - `SUB R1, R2, R3`: Subtract
-  - R1 = R2 - R3, sets zero flag a nd negative flag
+  - R1 = R2 - R3, sets zero flag and negative flag
 - `SUBI R1, R2, IMM`: Subtract Immediate
   - R1 = R2 - IMM, sets zero flag and negative flag
 - `INC S`: Increment
@@ -99,7 +100,7 @@ JNZ LOOP
 Because the `LOOP` directive is on the same line as an instruction, it does not function properly.
 
 ## .byte ADDR DATA
-Places `DATA` at address `ADDR` within data. `ADDR` and `DATA` can either be in hexadecimal (prefixed by 0x), binary (prefixed by 0b), or decimal (no prefix). `ADDR` must be a non-negative value less than or equal to 1023 (0x3FF), and `DATA` must be less than or equal to 255 (0xFF) for unsigned, or between 128 and -127 for signed. Negative values will be put in the register as 2's complement values.
+Places `DATA` at address `ADDR` within the data segment of memory. `ADDR` and `DATA` can either be in hexadecimal (prefixed by 0x), binary (prefixed by 0b), or decimal (no prefix). `ADDR` must be a non-negative value less than or equal to 1023 (0x3FF), and `DATA` must be less than or equal to 255 (0xFF) for unsigned, or between 128 and -127 for signed. Negative values will be put in the register as 2's complement values.
 
 Valid:
 ```
