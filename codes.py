@@ -1,32 +1,38 @@
 from enum import Enum
 
+# TODO It's not really necessary to have the value_ field,
+#  but it causes bugs when removing it
 class Opcode(Enum):
-    # two argument instructions
-    MOV = 0
-    LDI = 1
-    RDM = 2
-    WRM = 3
-    CMP = 4
-    CMPI = 5
+    def __new__(cls, code, arg_count):
+        obj = object.__new__(cls)
+        obj._value_ = code
+        obj.arg_count = arg_count
+        return obj
 
-    # one argument instructions
-    JMP = 6
-    JNZ = 7
-    JEZ = 8
-    JNE = 9
-    JPZ = 10
-    INC = 11
-    DEC = 12
-    INV = 13
-
-    # three argument instructions
-    ADD = 14
-    ADDI = 15
-    SUB = 16
-    SUBI = 17
-    ORL = 18
-    ANDL = 19
-    XORL = 20
+    MOV = (0, 2)
+    LDI = (1, 2)
+    RDM = (2, 2)
+    WRM = (3, 2)
+    CMP = (4, 2)
+    CMPI = (5, 2)
+    LSL = (6, 2)
+    LSR = (7, 2)
+    JMP = (8, 1)
+    JNZ = (9, 1)
+    JEZ = (10, 1)
+    JNE = (11, 1)
+    JPZ = (12, 1)
+    INC = (13, 1)
+    DEC = (14, 1)
+    INV = (15, 1)
+    ADD = (16, 3)
+    ADDI = (17, 3)
+    SUB = (18, 3)
+    SUBI = (19, 3)
+    ORL = (20, 3)
+    ANDL = (21, 3)
+    XORL = (22, 3)
+    NOP = (23, 0)
 
 # 1 byte register for A, B, C, D
 class Register1B():
@@ -139,6 +145,28 @@ class Register1B():
         self._validate_val()
         return self._value
 
+    def lsl(self, o1, o2):
+        self._arg_check(o1)
+        if not (isinstance(o1, Register1B) and isinstance(o2, int)):
+            raise TypeError("Bad types for Register1B.lsl")
+        # Specialized argcheck for o2
+        if not 0 <= o2 <= 7:
+            raise ValueError("Immediate is not in correct range [0 to 7], inclusive")
+        self._value = o1.get_val() << o2
+        self._validate_val()
+        return self._value
+
+    def lsr(self, o1, o2):
+        self._arg_check(o1)
+        if not (isinstance(o1, Register1B) and isinstance(o2, int)):
+            raise TypeError("Bad types for Register1B.lsl")
+        # Specialized argcheck for o2
+        if not 0 <= o2 <= 7:
+            raise ValueError("Immediate is not in correct range [0 to 7], inclusive")
+        self._value = o1.get_val() >> o2
+        self._validate_val()
+        return self._value
+
     def inv(self):
         # bitwise not in python (~) is stupid
         # so we do something else to make it work
@@ -214,31 +242,24 @@ class Instruction():
         line = line.replace(",", "").strip()
         # then split it by spaces
         tokens = line.split(" ")
-        operation = tokens[0].upper()
-        index = -1
-
-        for code in (Opcode):
-            if(operation == code.name):
-                index = code.value
-        if index == -1:
-            raise ValueError(f"Line {num}: Operation {operation} does not match known list")
-        
-        self.opidx = index
-        self._operation = operation
+        op = tokens[0].upper()
+        try:
+            self.operation = Opcode[op]
+        except KeyError:
+            raise ValueError(f"Line {num}: Operation {op} does not match known list")
         tokens.pop(0) # remove operation
 
-        if 0 <= index <= 5 and len(tokens) != 2:
-            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 2, {len(tokens)} were given")
-        elif 6 <= index <= 13 and len(tokens) != 1:
-            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 1, {len(tokens)} were given")
-        elif 14 <= index <= 20 and len(tokens) != 3:
-            raise ValueError(f"Line {num}: Incorrect number of arguments for {operation}: requires 3, {len(tokens)} were given")
-        
+        if len(tokens) != self.operation.arg_count:
+            raise ValueError(
+                f"Line {num}: {op} expects {self.operation.arg_count}"
+                f" arguments, got {len(tokens)}"
+            )
+
         # correct number of arguments, now set list
         self.args = tokens
 
     def __str__(self):
-        return f"{self._operation} {', '.join(self.args)}"
+        return f"{self.operation.name} {', '.join(self.args)}"
     
 # main CPU class
 class CPU():
@@ -272,7 +293,7 @@ class CPU():
         self._memory = memory
 
         # labels (for looping) should be a dictionary of strings to integers, or none
-        if labels != None and not isinstance(labels, dict):
+        if labels is not None and not isinstance(labels, dict):
             raise TypeError("Labels is not None or a dictionary")
         if isinstance(labels, dict):
             for key, value in labels.items():
@@ -299,15 +320,14 @@ class CPU():
         self._negativef = False 
 
     def __str__(self):
-        lines = []
-        lines.append("REGISTERS: ")
+        lines = ["REGISTERS: "]
         for key, value in self._regmap.items():
-            lines.append(f"Register {key}: {hex(value.get_val())}")
+            lines.append(f"Register {key}: 0x{value.get_val():02X}")
         lines.append("\nFLAGS")
         lines.append(f"Zero Flag: {'1' if self._zerof else '0'}")
         lines.append(f"Negative Flag: {'1' if self._negativef else '0'}\n")
         lines.append(f"PROGRAM COUNTER: {self._index}")
-        if(self._index >= len(self._program)):
+        if self._index >= len(self._program):
             lines.append("EXECUTION OVER")
         else:
             lines.append(f"NEXT INSTRUCTION: {str(self._program[self._index])}\n\n")
@@ -353,31 +373,24 @@ class CPU():
             raise ValueError("Second argument is not in A, B, C or D")
 
     def step(self):
-        
-
         # this will step through 1 instruction and update everything accordingly
         # first, determine what instruction we're executing
-        if(self._index >= len(self._program)):
+        if self._index >= len(self._program):
             raise EOFError("Execution of program ended")
         
         inst = self._program[self._index]
         inc_pc = True # whether to increment program counter
 
         # shorthand for commonly used arguments
-        dest = inst.args[0]
-        reg = inst.args[0]
-        src = "" # my ide gets mad if i dont do this
-        r1 = ""
-        if len(inst.args) > 1:
-            src = inst.args[1]
-            r1 = inst.args[1]
-        r2 = ""
-        if len(inst.args) > 2:
-            r2 = inst.args[2]
+        dest = inst.args[0] if len(inst.args) > 0 else None
+        reg = dest
+        src = inst.args[1] if len(inst.args) > 1 else None
+        r1 = src
+        r2 = inst.args[2] if len(inst.args) > 2 else None
 
-        # next, based on index, execute instruction and update flags
-        match inst.opidx:
-            case 0: # MOV
+        # next, execute instruction and update flags
+        match inst.operation:
+            case Opcode.MOV:
                 # check that registers are A, B, C, D, X, Y
                 if dest not in CPU.regs1b and dest not in CPU.regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
@@ -392,7 +405,7 @@ class CPU():
                 # load the destination register with the value of the source register
                 self._regmap[dest].load(self._regmap[src].get_val())
                 
-            case 1: # LDI
+            case Opcode.LDI:
                 if dest not in CPU.regs1b and dest not in CPU.regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
             
@@ -404,7 +417,7 @@ class CPU():
                 # load destination register with value
                 self._regmap[dest].load(imm)
 
-            case 2: # RDM
+            case Opcode.RDM:
                 if dest not in CPU.regs1b:
                     raise ValueError("Destination register not A, B, C, D")
                 if src not in CPU.regs2b:
@@ -415,7 +428,7 @@ class CPU():
                 # grab corresponding value from memory and load into register
                 self._regmap[dest].load(self._memory[addr])
                 
-            case 3: # WRM
+            case Opcode.WRM:
                 if dest not in CPU.regs2b:
                     raise ValueError("Destination register for address not X, Y")
                 if src not in CPU.regs1b:
@@ -426,57 +439,62 @@ class CPU():
                 # and change memory to data from src register
                 self._memory[addr] = self._regmap[src].get_val()
             
-            case 4: # CMP
+            case Opcode.CMP: # CMP
                 # perform comparison and save value
                 val = self._regmap[reg].cmp(self._regmap[r1])
                 # set corresponding flags
                 self._set_flags(val)
 
-            case 5: # CMPI
+            case Opcode.CMPI: # CMPI
                 imm = self._immediate(inst.args[1], 1)
 
                 # same as regular CMP
                 val = self._regmap[reg].cmp(imm)
                 self._set_flags(val)
 
+            case Opcode.LSL: # LSL
+                if dest not in CPU.regs1b and dest not in CPU.regs2b:
+                    raise ValueError("Destination register not A, B, C, D, X, or Y")
+                val = self._regmap[dest].lsl(self._regmap[src], )
+
             # JMP, JNZ, JEZ, JNE, JPZ
-            case 6 | 7 | 8 | 9 | 10:
+            case Opcode.JMP | Opcode.JNZ | Opcode.JEZ | Opcode.JNE | Opcode.JPZ:
                 label = inst.args[0]
                 if label not in self._labels:
                     raise ValueError("Label not found")
                 
                 jump = False
-                if inst.opidx == 6:
+                if inst.operation == Opcode.JMP:
                     jump = True
-                elif inst.opidx == 7 and not self._zerof:
+                elif inst.operation == Opcode.JNZ and not self._zerof:
                     jump = True
-                elif inst.opidx == 8 and self._zerof:
+                elif inst.operation == Opcode.JEZ and self._zerof:
                     jump = True
-                elif inst.opidx == 9 and self._negativef:
+                elif inst.operation == Opcode.JNE and self._negativef:
                     jump = True
-                elif inst.opidx == 10 and not self._negativef:
+                elif inst.operation == Opcode.JPZ and not self._negativef:
                     jump = True
 
                 if jump:
                     self._index = self._labels[label]
                     inc_pc = False
                 
-            case 11: # INC
+            case Opcode.INC: # INC
                 if reg not in CPU.regs2b:
                     raise ValueError("Register to increment is not X or Y")
                 self._regmap[reg].increment()
 
-            case 12: # DEC
+            case Opcode.DEC: # DEC
                 if reg not in CPU.regs2b:
                     raise ValueError("Register to decrement is not X or Y")
                 self._regmap[reg].decrement()
 
-            case 13: # INV
+            case Opcode.INV: # INV
                 if reg not in CPU.regs1b:
                     raise ValueError("Register to invert is not A, B, C, or D")
                 self._regmap[reg].inv()
 
-            case 14: # ADD
+            case Opcode.ADD: # ADD
                 self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].add(self._regmap[r1], self._regmap[r2])
@@ -484,7 +502,7 @@ class CPU():
                 # set flags
                 self._set_flags(val)
 
-            case 15: # ADDI
+            case Opcode.ADDI: # ADDI
                 imm = self._immediate(inst.args[2], 1)
 
                 self._reg_check2(dest, r1)
@@ -493,14 +511,14 @@ class CPU():
 
                 self._set_flags(val)
 
-            case 16: # SUB
+            case Opcode.SUB: # SUB
                 self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].sub(self._regmap[r1], self._regmap[r2])
 
                 self._set_flags(val)
 
-            case 17: # SUBI
+            case Opcode.SUBI: # SUBI
                 imm = self._immediate(inst.args[2], 1)
                 self._reg_check2(dest, r1)
                 
@@ -508,7 +526,7 @@ class CPU():
 
                 self._set_flags(val)
 
-            case 18: # ORL
+            case Opcode.ORL: # ORL
                 self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].orl(self._regmap[r1], self._regmap[r2])
@@ -518,7 +536,7 @@ class CPU():
                 else:
                     self._zerof = False
                 
-            case 19: # ANDL
+            case Opcode.ANDL: # ANDL
                 self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].andl(self._regmap[r1], self._regmap[r2])
@@ -528,7 +546,7 @@ class CPU():
                 else:
                     self._zerof = False
 
-            case 20: # XORL
+            case Opcode.XORL: # XORL
                 self._reg_check3(dest, r1, r2)
                 
                 val = self._regmap[dest].xorl(self._regmap[r1], self._regmap[r2])
@@ -537,6 +555,9 @@ class CPU():
                     self._zerof = True
                 else:
                     self._zerof = False
+
+            case Opcode.NOP:
+                pass
 
             case _:
                 raise ValueError("Unknown instruction index")
