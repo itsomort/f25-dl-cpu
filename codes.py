@@ -1,7 +1,7 @@
 from enum import Enum
 
 # TODO It's not really necessary to have the value_ field,
-#  but it causes bugs when removing it
+#  but it causes bugs when removing it due to _program's logic
 class Opcode(Enum):
     def __new__(cls, code, arg_count):
         obj = object.__new__(cls)
@@ -15,8 +15,8 @@ class Opcode(Enum):
     WRM = (3, 2)
     CMP = (4, 2)
     CMPI = (5, 2)
-    LSL = (6, 2)
-    LSR = (7, 2)
+    LSL = (6, 3)
+    LSR = (7, 3)
     JMP = (8, 1)
     JNZ = (9, 1)
     JEZ = (10, 1)
@@ -452,10 +452,17 @@ class CPU():
                 val = self._regmap[reg].cmp(imm)
                 self._set_flags(val)
 
-            case Opcode.LSL: # LSL
+            case Opcode.LSL:
+                imm = self._immediate(inst.args[2], 1)
+                val = self._regmap[dest].lsl(self._regmap[src], imm)
+                self._set_flags(val)
+
+            case Opcode.LSR:
                 if dest not in CPU.regs1b and dest not in CPU.regs2b:
                     raise ValueError("Destination register not A, B, C, D, X, or Y")
-                val = self._regmap[dest].lsl(self._regmap[src], )
+                imm = self._immediate(inst.args[2], 1)
+                val = self._regmap[dest].lsr(self._regmap[src], imm)
+                self._set_flags(val)
 
             # JMP, JNZ, JEZ, JNE, JPZ
             case Opcode.JMP | Opcode.JNZ | Opcode.JEZ | Opcode.JNE | Opcode.JPZ:
