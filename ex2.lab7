@@ -5,4 +5,5 @@ RDM A, X -- get data from 0x200 into register A
 ADDI A, A, 11 -- add 11 to 0xE3
 WRM X, A -- write back to memory
 
-LDI B, 0 -- filler instruction to give time to check memory
+NOP -- filler instructions to give time to check memory
+NOP
