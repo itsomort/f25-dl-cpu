@@ -13,6 +13,10 @@ This document contains information about the CPU's architecture, instructions, a
 
 # Instructions
 
+## NOP
+- `NOP`: NOP aka No Operation
+  - Generally not used for actual program operation, this is an instruction that does nothing. It can be used in programs as a point to check the values in memory or within registers.
+
 ## Data Management
 - `MOV R1/S1, R2/S2`: Move
   - Move data from register `R2/S2` to register `R1/S1`, registers must be same width
@@ -70,6 +74,10 @@ This document contains information about the CPU's architecture, instructions, a
   - If R1 == IMM, sets zero flag and not negative flag
   - If R1 > IMM, sets neither flag
   - If R1 < IMM, sets negative flag
+- `LSL R1, IMM`: Logical Shift Left
+  - This will shift R1 by IMM bits to the left. IMM must be within 0 to 7 inclusive.
+- `LSR R1, IMM`: Logical Shift Right
+  - This will shift R1 by IMM bits to the right. IMM must be within 0 to 7 inclusive.
 
 # Directives
 
