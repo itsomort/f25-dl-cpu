@@ -233,7 +233,7 @@ class Register2B():
 
 # Instruction class
 class Instruction():
-    def __init__(self, line, num=0):
+    def __init__(self, line, num=None):
         # num = line number
         # line = single instruction
         # first, remove commas and strip whitespace just in case
@@ -246,7 +246,7 @@ class Instruction():
         try:
             self.operation = Opcode[op]
         except KeyError:
-            raise ValueError(f"Line {num}: Operation {op} does not match known list")
+            raise ValueError(f"Line {num if num else 'N/A'}: Operation {op} does not match known list")
         tokens.pop(0) # remove operation
 
         if len(tokens) != self.operation.arg_count:

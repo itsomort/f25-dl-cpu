@@ -13,6 +13,6 @@ SUB C, A, C -- compute C = A - C
 NOP
 
 LDI D, 0xC0
-LDI A, 0
+NOP
 
 -- now the registers spell out 003701C0
